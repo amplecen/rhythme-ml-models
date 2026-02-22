@@ -27,7 +27,6 @@ origins = [
     "http://localhost:3001",
     "https://rhythme-gamma.vercel.app",
     "https://*-oopsvincent-projects.vercel.app",
-    "https://*.vercel.app"
 ]
 
 app.add_middleware(
