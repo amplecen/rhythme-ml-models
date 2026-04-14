@@ -15,7 +15,7 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 HF_MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 
 #Sentiment Setting 
-CONFIDENCE_THRESHOLS = 0.70
+CONFIDENCE_THRESHOLS = 0.85
 ROBERTA_RETRIES = 3
 RETRY_DELAY = 2
 
