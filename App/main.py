@@ -3,7 +3,12 @@ from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from App.config import APP_TITLE, APP_VERSION, APP_DESCRIPTION
 from App.model import predictor
-from App.schemas import HabitInput, PredictionResponse, JournalInput, JournalResponse, SentimentResult
+from App.schemas import (
+    HabitInput, PredictionResponse,
+    JournalInput, JournalResponse, SentimentResult,
+    WeeklyInsightRequest, WeeklyInsightResponse
+)
+from App.insight_engine import generate_insights
 from App.dependencies import verify_api_secret
 from . import sentiment
 from datetime import datetime
@@ -49,7 +54,8 @@ def home():
         "docs":"/docs",
         "health":"/o1/health",
         "journal" :"/o1/journal",
-        "analyze":"/o1/analyze"
+        "analyze":"/o1/analyze",
+        "insights": "/o1/insights_weekly"
     }
     
 @app.get("/o1/health")
@@ -101,3 +107,16 @@ def create_journal(data : JournalInput):
         model_used=result["model_used"],
         created_at=datetime.now().isoformat()
     )
+
+@app.post("/o1/insights_weekly", response_model=WeeklyInsightResponse, dependencies=[Depends(verify_api_secret)])
+def weekly_insights(data: WeeklyInsightRequest):
+    if not data.logs:
+        raise HTTPException(status_code=400, detail="No logs provided.")
+ 
+    result = generate_insights(data.logs)
+    return WeeklyInsightResponse(
+        insights=result["insights"],
+        days_analyzed=result["days_analyzed"],
+        message=result["message"]
+    )
+ 

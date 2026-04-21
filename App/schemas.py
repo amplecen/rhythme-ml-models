@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 class HabitInput(BaseModel):
@@ -54,3 +54,29 @@ class JournalResponse(BaseModel):
     emotions : List[str]
     model_used : str
     created_at   : str
+
+
+class DaySentiment(BaseModel):
+    sentiment: str          
+    confidence: float       # 0.0 to 1.0
+    model_used: Optional[str] = None
+    emotions: Optional[dict] = None
+ 
+ 
+class DailyLog(BaseModel):
+    date: Optional[str] = None                  
+    journaled: int                              # 0 or 1
+    tasks_done: int
+    mood: int = Field(..., ge=1, le=10)         # 1 to 10
+    focus_mins: int
+    sentiment: Optional[DaySentiment] = None   # only on days user journaled
+ 
+ 
+class WeeklyInsightRequest(BaseModel):
+    logs: List[DailyLog]
+ 
+ 
+class WeeklyInsightResponse(BaseModel):
+    insights: List[str]
+    days_analyzed: int
+    message: Optional[str] = None
