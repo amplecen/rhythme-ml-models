@@ -8,7 +8,7 @@ load_dotenv()
 #App Secret Key 
 API_SECRET = os.environ.get("API_SECRET")
 
-APP_TITLE = ""
+APP_TITLE = "Rhythmé API"
 APP_VERSION = __version__
 APP_DESCRIPTION = """ Core ML API powering the Rhythmé app.
 

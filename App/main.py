@@ -122,7 +122,7 @@ def weekly_insights(data: WeeklyInsightRequest):
         message=result["message"]
     )
  
-@app.post("/api/v1/goals/generate", dependencies=[Depends(verify_api_secret)])
+@app.post("/api/v1/onboarding/generate", dependencies=[Depends(verify_api_secret)])
 def generate_goal(request: GoalGenerateRequest) -> GoalGenerateResponse:
     result = generate_goal_plan(request.goal_title, request.goal_description)
     return result
