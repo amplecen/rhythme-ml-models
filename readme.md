@@ -1,36 +1,41 @@
-# Rhythme ML Models API
+# Rhythmé API
 
-Advanced machine learning services for the Rhythme journaling and habit tracking app.
+Core API powering the Rhythmé journaling and habit tracking app.
 
 ## 🎯 Features
 
-### 1. Sentiment Analysis
-Analyze journal entries using hybrid VADER + RoBERTa approach for accurate sentiment detection.
+### 1. Habit Completion Prediction
+Predict habit completion likelihood based on user's historical behavior patterns using a trained Random Forest model.
 
-### 2. Habit Prediction
-Predict habit completion likelihood based on user's historical behavior patterns.
+### 2. Hybrid Sentiment Analysis
+Analyze journal entries using a hybrid VADER + RoBERTa approach. VADER handles confident cases instantly, RoBERTa handles complex ones.
 
-### 3. Weekly Behavioral Insights
+### 3. Behavioral Pattern Insights
 Detect patterns across 14+ days of user data using statistical correlation math. Returns plain-English insight sentences — no ML model, no DB, pure compute.
+
+### 4. Goal Structuring
+Convert a user-defined goal into a minimal set of starter tasks and habits using Groq LLM. Stateless, generation-only.
 
 ---
 
 ## 📁 Project Structure
+
 ```
 RHYTHME-ML-MODELS/
 ├── App/
-│   ├── .env                    # Environment variables (HF_TOKEN, API_SECRET)
 │   ├── config.py               # Configuration settings
 │   ├── schemas.py              # Pydantic models
-│   ├── sentiment.py            # Sentiment analysis logic
-│   ├── insight_engine.py       # Behavioral pattern correlation math
 │   ├── dependencies.py         # API secret auth
 │   ├── main.py                 # FastAPI server
-│   └── model.py                # Habit prediction model loader
+│   ├── model.py                # Habit prediction model loader
+│   ├── sentiment.py            # Hybrid sentiment analysis logic
+│   ├── insight_engine.py       # Behavioral pattern correlation math
+│   └── goals_engine.py         # Goal structuring via Groq LLM
 ├── Models/
 │   └── Model_1/
 │       ├── Habit Prediction Model.ipynb
 │       └── habit_model.pkl     # Trained habit prediction model
+├── .env                        # Environment variables (not committed)
 ├── requirements.txt
 └── README.md
 ```
@@ -45,13 +50,15 @@ pip install -r requirements.txt
 ```
 
 ### 2. Setup Environment Variables
-Create `App/.env` file:
+Create `.env` file in the root:
 ```env
-HF_TOKEN=hf_your_huggingface_token_here
 API_SECRET=your_secret_key_here
+HF_TOKEN=hf_your_huggingface_token_here
+GROQ_API_KEY=your_groq_api_key_here
 ```
 
-Get your HF token from: https://huggingface.co/settings/tokens
+- HuggingFace token: https://huggingface.co/settings/tokens
+- Groq API key: https://console.groq.com/keys
 
 ### 3. Run API Server
 ```bash
@@ -61,13 +68,13 @@ uvicorn App.main:app --reload
 ### 4. Access API
 - **API Root**: http://localhost:8000
 - **Interactive Docs**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/o1/health
+- **Health Check**: http://localhost:8000/v1/health
 
 ---
 
 ## 📡 API Endpoints
 
-All endpoints except `/` and `/o1/health` require the header:
+All endpoints except `/` and `/v1/health` require the header:
 ```
 x-api-secret: your_secret_here
 ```
@@ -79,7 +86,7 @@ x-api-secret: your_secret_here
 #### `GET /`
 Returns API info and available endpoints.
 
-#### `GET /o1/health`
+#### `GET /v1/health`
 Health check for all services.
 
 **Response:**
@@ -97,7 +104,7 @@ Health check for all services.
 
 ### Sentiment Analysis
 
-#### `POST /o1/analyze`
+#### `POST /v1/analyze`
 Quick sentiment check on any text.
 
 **Request:**
@@ -117,7 +124,7 @@ Quick sentiment check on any text.
 }
 ```
 
-#### `POST /o1/journal`
+#### `POST /v1/journal`
 Create a journal entry with full sentiment analysis.
 
 **Request:**
@@ -145,7 +152,7 @@ Create a journal entry with full sentiment analysis.
 
 ### Habit Prediction
 
-#### `POST /o1/predict`
+#### `POST /v1/predict`
 Predict single habit completion.
 
 **Request:**
@@ -175,7 +182,7 @@ Predict single habit completion.
 
 ### Weekly Behavioral Insights
 
-#### `POST /o1/insights/weekly`
+#### `POST /v1/insights_weekly`
 Detects behavioral patterns from 14+ days of daily logs. Called once per week by the frontend. Nothing is saved — pure compute and return.
 
 **How it works:**
@@ -253,11 +260,102 @@ Detects behavioral patterns from 14+ days of daily logs. Called once per week by
 
 ---
 
+### Goal Structuring
+
+#### `POST /api/v1/onboarding/generate`
+Converts a user-defined goal into a minimal set of starter tasks and habits. Stateless — nothing is saved, output is returned directly.
+
+**Request:**
+```json
+{
+  "goal_title": "Learn to play guitar",
+  "goal_description": "I want to play my favourite songs within 6 months"
+}
+```
+
+`goal_description` is optional — defaults to empty string if not provided.
+
+**Response — success:**
+```json
+{
+  "tasks": [
+    {
+      "title": "Buy or borrow a guitar",
+      "description": "Get an acoustic or electric guitar suited for beginners",
+      "type": "starter"
+    },
+    {
+      "title": "Find a beginner lesson resource",
+      "description": "Pick one resource such as YouTube tutorials or a local teacher",
+      "type": "starter"
+    },
+    {
+      "title": "Learn 3 basic chords",
+      "description": "Start with G, C, and D chords as your foundation",
+      "type": "starter"
+    }
+  ],
+  "habits": [
+    {
+      "title": "Practice chord transitions",
+      "frequency": "daily",
+      "reason": "Builds muscle memory faster than any other exercise"
+    },
+    {
+      "title": "Play a full song from start to finish",
+      "frequency": "3x per week",
+      "reason": "Develops rhythm and confidence with real music"
+    }
+  ],
+  "generated": true,
+  "fallback_used": false
+}
+```
+
+**Response — fallback (all retries failed):**
+```json
+{
+  "tasks": [
+    {
+      "title": "Define what success looks like for this goal",
+      "description": "Write down exactly what achieving this goal means to you",
+      "type": "starter"
+    },
+    {
+      "title": "Find one resource or person to learn from",
+      "description": "Identify a book, course, or mentor relevant to your goal",
+      "type": "starter"
+    },
+    {
+      "title": "Complete one small action today",
+      "description": "Pick the smallest possible first step and do it now",
+      "type": "starter"
+    }
+  ],
+  "habits": [
+    {
+      "title": "Spend 20 minutes daily on this goal",
+      "frequency": "daily",
+      "reason": "Small consistent effort compounds over time"
+    },
+    {
+      "title": "Review your progress",
+      "frequency": "once per week",
+      "reason": "Keeps you aware of what is and isn't working"
+    }
+  ],
+  "generated": false,
+  "fallback_used": true
+}
+```
+
+---
+
 ## 🧪 Testing
 
 ### Test Sentiment Analysis
 ```bash
-curl -X POST "http://localhost:8000/o1/analyze" \
+curl -X POST "http://localhost:8000/v1/analyze" \
   -H "Content-Type: application/json" \
   -H "x-api-secret: your_secret_here" \
   -d '{"text": "I am feeling grateful and happy today!"}'
@@ -265,7 +363,7 @@ curl -X POST "http://localhost:8000/o1/analyze" \
 
 ### Test Habit Prediction
 ```bash
-curl -X POST "http://localhost:8000/o1/predict" \
+curl -X POST "http://localhost:8000/v1/predict" \
   -H "Content-Type: application/json" \
   -H "x-api-secret: your_secret_here" \
   -d '{
@@ -281,13 +379,21 @@ curl -X POST "http://localhost:8000/o1/predict" \
 
 ### Test Weekly Insights
 ```bash
-curl -X POST "http://localhost:8000/o1/insights/weekly" \
+curl -X POST "http://localhost:8000/v1/insights_weekly" \
   -H "Content-Type: application/json" \
   -H "x-api-secret: your_secret_here" \
   -d @test_logs.json
 ```
 
 Save your 14-day JSON to `test_logs.json` and run the curl above.
+
+### Test Goal Structuring
+```bash
+curl -X POST "http://localhost:8000/api/v1/onboarding/generate" \
+  -H "Content-Type: application/json" \
+  -H "x-api-secret: your_secret_here" \
+  -d '{"goal_title": "Learn to play guitar", "goal_description": ""}'
+```
 
 ### Using Python
 ```python
@@ -300,7 +406,7 @@ headers = {
 
 # Sentiment
 response = requests.post(
-    "http://localhost:8000/o1/analyze",
+    "http://localhost:8000/v1/analyze",
     headers=headers,
     json={"text": "I'm so happy today!"}
 )
@@ -308,7 +414,7 @@ print(response.json())
 
 # Habit prediction
 response = requests.post(
-    "http://localhost:8000/o1/predict",
+    "http://localhost:8000/v1/predict",
     headers=headers,
     json={
         "day_of_week": 1,
@@ -324,9 +430,17 @@ print(response.json())
 
 # Weekly insights
 response = requests.post(
-    "http://localhost:8000/o1/insights/weekly",
+    "http://localhost:8000/v1/insights_weekly",
     headers=headers,
     json={"logs": [...]}  # 14+ DailyLog objects
+)
+print(response.json())
+
+# Goal structuring
+response = requests.post(
+    "http://localhost:8000/api/v1/onboarding/generate",
+    headers=headers,
+    json={"goal_title": "Learn to play guitar", "goal_description": ""}
 )
 print(response.json())
 ```
@@ -405,34 +519,69 @@ This endpoint does not save anything. The frontend is responsible for storing da
 
 ---
 
+## 🎯 Goal Structuring
+
+### How It Works
+- Single Groq LLM call using `llama-3.3-70b-versatile`
+- Python validation after every response — no second LLM call
+- Retries up to 2 times on invalid output
+- Returns hardcoded fallback if both retries fail
+- Nothing is saved — stateless, generate and return
+
+### Generation Rules
+
+**Tasks:**
+- 3–5 max
+- Concrete first steps specific to the goal
+- No timelines, no scheduling
+
+**Habits:**
+- 2–4 max
+- Frequency must be one of: `daily`, `2x per week`, `3x per week`, `once per week`
+- Specific to the goal — no generic advice
+
+### Performance
+- Input tokens: ~311
+- Output tokens: ~328
+- Latency: ~834ms
+- Round trip: ~1.19s
+
+---
+
 ## 🔧 Configuration
 
 ### Environment Variables
 ```env
-HF_TOKEN=hf_your_token_here
 API_SECRET=your_secret_key_here
-CONFIDENCE_THRESHOLD=0.70
-ROBERTA_RETRIES=3
-RETRY_DELAY=2
+HF_TOKEN=hf_your_huggingface_token_here
+GROQ_API_KEY=your_groq_api_key_here
 ```
 
-### Sentiment Settings (`config.py`)
+### Settings (`config.py`)
 - **HF_MODEL**: `cardiffnlp/twitter-roberta-base-sentiment-latest`
-- **CONFIDENCE_THRESHOLD**: `0.70`
+- **CONFIDENCE_THRESHOLD**: `0.85`
 - **ROBERTA_RETRIES**: `3`
 - **RETRY_DELAY**: `2`
+- **GROQ_MODEL**: `llama-3.3-70b-versatile`
+- **GROQ_TEMPERATURE**: `0.3`
+- **GROQ_MAX_TOKENS**: `1000`
 
 ---
 
 ## 📦 Dependencies
 ```txt
-fastapi==0.104.1
-uvicorn==0.24.0
-vaderSentiment==3.3.2
-huggingface-hub==0.20.0
-python-dotenv==1.0.0
-pydantic==2.5.0
+fastapi
+uvicorn
+gunicorn
+vaderSentiment
+huggingface-hub
+python-dotenv
+pydantic
 scipy
+scikit-learn
+pandas
+numpy
+groq
 ```
 
 ---
@@ -472,6 +621,14 @@ HTTP `403` — wrong or missing `x-api-secret` header.
 }
 ```
 
+### Goal Structuring Errors
+**Both retries fail:** Returns hardcoded fallback with `"fallback_used": true`. Never exposes a raw error.
+
+**Empty or too-short goal title:**
+```json
+{ "detail": "goal_title must be at least 3 characters" }
+```
+
 ---
 
 ## 🌐 Deployment
@@ -483,31 +640,24 @@ uvicorn App.main:app --reload
 
 ### Production (Render)
 1. Connect GitHub repository
-2. Set environment variables: `HF_TOKEN`, `API_SECRET`
-3. Deploy automatically
+2. Add environment variables in Render dashboard: `API_SECRET`, `HF_TOKEN`, `GROQ_API_KEY`
+3. Start command: `gunicorn App.main:app -k uvicorn.workers.UvicornWorker`
+4. Deploy automatically on push
 
 ---
 
 ## 🔥 Feature Highlights
 
-- ✅ **Hybrid Sentiment Analysis** — VADER (fast) + RoBERTa (accurate)
-- ✅ **Automatic Fallback** — Always returns results even if APIs fail
-- ✅ **Emotion Detection** — Extracts emotion tags automatically
-- ✅ **Habit Prediction** — ML-powered completion forecasting
-- ✅ **Weekly Behavioral Insights** — Correlation math on 14+ days of logs
+- ✅ **Habit Completion Prediction** — Random Forest model, 69.5% test accuracy
+- ✅ **Hybrid Sentiment Analysis** — VADER (fast) + RoBERTa (accurate), automatic fallback
+- ✅ **Behavioral Pattern Insights** — Correlation math on 14+ days, no ML model needed
+- ✅ **Goal Structuring** — Groq LLM, 2-retry validation, hardcoded fallback
 - ✅ **API Secret Auth** — All sensitive endpoints protected
-- ✅ **RESTful API** — Clean, documented endpoints
 - ✅ **Type Safety** — Pydantic schemas with field validation
 - ✅ **Interactive Docs** — Auto-generated Swagger UI at `/docs`
-- ✅ **Production Ready** — Error handling, logging, retries
+- ✅ **Production Ready** — Error handling, retries, automatic fallbacks
 
-<!-- ---
-
-## 📄 License
-
-MIT License
-
---- -->
+---
 
 ## 👥 Support
 
